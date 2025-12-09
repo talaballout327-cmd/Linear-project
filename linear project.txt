@@ -1,0 +1,219 @@
+Tala Ballout
+
+import sympy as sp
+from sympy import Rational
+
+# ===================== Linear Algebra Functions =====================
+def read_matrix():
+    r = int(input("Enter number of rows: "))
+    c = int(input("Enter number of columns: "))
+    print("Enter matrix values row-by-row:")
+    data = [list(map(int, input().split())) for _ in range(r)] 
+    data = [[Rational(x) for x in row] for row in data]
+    return sp.Matrix(data)
+
+def clean_print(matrix):
+    for i in range(matrix.rows):
+        row = matrix.row(i)
+        print([x for x in row])  
+
+def normalize_REF(matrix):
+    REF = matrix.echelon_form(simplify=True)
+    normalized_rows = []
+    for i in range(REF.rows):
+        row = REF.row(i).tolist()[0]
+        pivot = next((x for x in row if x != 0), None)
+        if pivot:
+            row = [x / pivot for x in row]
+        normalized_rows.append(row)
+    return sp.Matrix(normalized_rows)
+
+# ===================== Differential Equation Functions =====================
+x = sp.symbols('x')
+y = sp.Function('y')
+math_funcs = ['sin', 'cos', 'tan', 'exp', 'log', 'sqrt']
+
+def preprocess(equation):
+    equation = equation.replace("y''(x)", "y(x).diff(x,2)").replace("y'(x)", "y(x).diff(x)")
+    for f in math_funcs:
+        equation = equation.replace(f + "(x)", f"sp.{f}(x)")
+    return equation
+
+def solve_first_order(eq):
+    try:
+        sol = sp.dsolve(eq, hint="separable")
+        print("\nSolution (Separable) = ", sol)
+        return
+    except:
+        pass
+    try:
+        sol = sp.dsolve(eq, hint="1st_linear")
+        print("\nSolution (Linear) = ", sol)
+        return
+    except:
+        print("⚠ Equation unsupported for First Order solver")
+
+def solve_second_order(eq):
+    try:
+        sol = sp.dsolve(eq)
+        print("\nGeneral Solution =", sol)
+    except:
+        print("❗ Could not solve symbolically")
+
+# ===================== Main Program =====================
+while True:
+    print("\n===== MAIN MENU =====")
+    print("1) Linear Algebra Tool")
+    print("2) Differential Equation Solver")
+    print("3) Exit Program")
+    main_choice = int(input("\nChoose option: "))
+
+    if main_choice == 3:
+        print("\nProgram Closed ✔")
+        break
+
+    elif main_choice == 1:
+        # ================= Linear Algebra Menu =================
+        while True:
+            print("\n===== LINEAR ALGEBRA TOOL =====")
+            print("1) REF                 2) RREF")
+            print("3) + , - , Scalar , Matrix Multiply")
+            print("4) Determinant         5) Cramer's Rule")
+            print("6) Linear Independence 7) Basis & Dimension")
+            print("8) Eigenvalues/Vectors 9) Diagonalization")
+            print("10) Back to Main Menu")
+            choice = int(input("\nSelect option: "))
+
+            if choice == 10:
+                break
+
+            elif choice == 1:
+                A = read_matrix()
+                REF = normalize_REF(A)
+                print("\nREF =\n")
+                clean_print(REF)
+
+            elif choice == 2:
+                A = read_matrix()
+                RREF = A.rref()[0]
+                print("\nRREF =\n")
+                clean_print(RREF)
+
+            elif choice == 3:
+                print("\n1- Addition  2- Subtraction  3- Scalar Multiply  4- Multiply Matrices")
+                op = int(input("Choose: "))
+                A = read_matrix()
+                if op in [1,2,4]:
+                    print("\nEnter second matrix:")
+                    B = read_matrix()
+                if op==1:
+                    if A.shape == B.shape: print("\nA+B =\n", A+B)
+                    else: print("\n⚠ Cannot Add ✖ Dimensions Not Equal")
+                elif op==2:
+                    if A.shape == B.shape: print("\nA-B =\n", A-B)
+                    else: print("\n⚠ Cannot Subtract ✖ Dimensions Not Equal")
+                elif op==3:
+                    k = Rational(int(input("Enter scalar: ")))
+                    print("\nk*A =\n", k*A)
+                elif op==4:
+                    if A.shape[1] == B.shape[0]: print("\nA*B =\n", A*B)
+                    else: print("\n⚠ Invalid: Columns(A) must equal Rows(B)")
+
+            elif choice == 4:
+                A = read_matrix()
+                if A.rows == A.cols:
+                    print("\nDet(A) =", A.det())
+                else:
+                    print("\n⚠ Determinant defined only for square matrices")
+
+            elif choice == 5:
+                A = read_matrix()
+                if A.rows==A.cols:
+                    b = sp.Matrix(list(map(int, input("Enter b vector: ").split())))
+                    b = b.applyfunc(Rational)
+                    if A.det()!=0:
+                        print("\nSolution =", A.LUsolve(b))
+                    else:
+                        print("\n⚠ No unique solution: det(A)=0")
+                else:
+                    print("\n⚠ Must be square for Cramer's Rule")
+
+            elif choice == 6:
+                A = read_matrix()
+                if A.rank() == A.shape[1]:
+                    print("\n✔ Vectors are Linearly Independent")
+                else:
+                    print("\n✖ Vectors are Dependent")
+
+            elif choice == 7:
+                A = read_matrix()
+                col_basis = A.columnspace()
+                row_basis = A.rowspace()
+                dim = A.rank()
+                print("\n=== Column Space Basis ===")
+                for i, vec in enumerate(col_basis, start=1):
+                    print(f"Vector {i}: {[x for x in vec]}")
+                print("\n=== Row Space Basis ===")
+                for i, vec in enumerate(row_basis, start=1):
+                    print(f"Vector {i}: {[x for x in vec]}")
+                print(f"\nDimension / Rank = {dim}")
+
+            elif choice == 8:
+                A = read_matrix()
+                if A.rows == A.cols:
+                    eigen_data = A.eigenvects()
+                    print("\n=== Eigenvalues & Eigenvectors ===")
+                    for idx, (eigval, mult, vecs) in enumerate(eigen_data, start=1):
+                        print(f"\nEigenvalue {idx}: {eigval}  (Multiplicity: {mult})")
+                        for v_idx, vec in enumerate(vecs, start=1):
+                            print(f"  Eigenvector {v_idx}: {[x for x in vec]}")
+                else:
+                    print("\n⚠ Eigenvalues only for square matrices")
+
+            elif choice == 9:
+                A = read_matrix()
+                if A.rows == A.cols:
+                    if A.is_diagonalizable():
+                        P, D = A.diagonalize()
+                        print("\nMatrix is Diagonalizable ✔")
+                        print("\nP =")
+                        clean_print(P)
+                        print("\nD =")
+                        clean_print(D)
+                        print("\nCheck P*D*P^-1 =")
+                        clean_print(P * D * P.inv())
+                    else:
+                        print("\n✖ Not Diagonalizable")
+                else:
+                    print("\n⚠ Only Square Matrices can be Diagonalized")
+
+    elif main_choice == 2:
+        # ================= Differential Equations Menu =================
+        while True:
+            print("\n=========== DIFFERENTIAL EQ SOLVER ===========")
+            print("1) Solve First Order ODE")
+            print("2) Solve Second Order ODE")
+            print("3) Back to Main Menu")
+            ch = int(input("\nChoose option: "))
+            if ch == 3:
+                break
+
+            equation = input("\nEnter differential equation in form y' or y'' form:\nExample: y'(x)+y(x)=sin(x)\n→ ")
+            equation = preprocess(equation)
+
+            try:
+                eq = sp.Eq(eval(equation.split("=")[0]), eval(equation.split("=")[1]))
+            except:
+                print("⚠ Invalid formatting — use 'y(x)', 'y'(x)', 'y''(x)' and sin(x), cos(x), etc.")
+                continue
+
+            if ch == 1:
+                if eq.has(sp.diff(y(x),x)) and not eq.has(sp.diff(y(x),x,2)):
+                    solve_first_order(eq)
+                else:
+                    print("⚠ Must contain first derivative only (y').")
+            elif ch == 2:
+                if eq.has(sp.diff(y(x),x,2)):
+                    solve_second_order(eq)
+                else:
+                    print("⚠ Must contain y'' for second order ODE.")
